@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-# # Compute the distance between traces for classification
+# # Compute the distance between traces for clustering
 
 # Import standard libraries
 import pandas as pd
@@ -19,6 +19,9 @@ import cortex_lib as cl
 # TODO: This could be improved by testing the similarity before merging and so allow for separation of co channel emissions
 
 def _main():
+
+    # constant to activate the demonstration plot
+    PLOT_COMPARISON = True
 
     cl.log_message("Starting channel distance processing")
 
@@ -95,6 +98,10 @@ def _main():
         # loop through all channels and compute the distance
         for target_channel_index in range(ref_channel_index+1, number_of_channels):
 
+            if PLOT_COMPARISON:
+                percentage_string = "\r{}%".format(round(100.0*(target_channel_index/number_of_channels), ndigits=1))
+                print(percentage_string, end="\r", flush=True)
+
             # get key and trace from index
             target_channel_id = channel_list[target_channel_index]
             target_channel_trace = channel_traces[target_channel_id]
@@ -129,38 +136,46 @@ def _main():
             # The correlation values are not affected by the order but their relative indexing to the result is.
             # For the implemented method of alignment, the first trace should be the largest
         
-            """
-            figure1_name = "Comparison_{}-{} ".format(ref_channel_id, target_channel_id)
-            plt.figure(figure1_name)
-            plt.subplot(312)
-            plt.xticks([])
-            plt.subplot(311)
-            plt.xticks([])
-            """
-
             if work_ref_channel_trace.size > target_channel_trace.size:
                 smaller_trace = target_channel_trace.view()
                 larger_trace = work_ref_channel_trace.view()
 
-                """
-                plt.title('Longer Trace [{}]'.format(ref_channel_id))
-                plt.plot(channel_traces[ref_channel_id], 'r-')
-                plt.subplot(312)
-                plt.title('Shorter Trace [{}]'.format(target_channel_id))
-                plt.plot(channel_traces[target_channel_id], 'b-')
-                """
+                if PLOT_COMPARISON:
+                    figure_file_name = "./Images/"+figure1_name+".png"
+                    figure1_name = "Comparison_{}-{} ".format(ref_channel_id, target_channel_id)
+                    plt.figure(figure1_name)
+
+                    sp1 = plt.subplot(311)
+                    plt.title('Channel [{}] (wider)'.format(ref_channel_id))
+                    plt.ylabel('Norm. Level')
+                    plt.plot(channel_traces[ref_channel_id], 'r-o')
+                    plt.setp(sp1.get_xticklabels(), visible=False)
+
+                    sp2 = plt.subplot(312, sharex=sp1, sharey=sp1)
+                    plt.title('Channel [{}] (narrower)'.format(target_channel_id))
+                    plt.ylabel('Norm. Level')
+                    plt.plot(channel_traces[target_channel_id], 'b-^')
+                    plt.setp(sp2.get_xticklabels(), visible=False)
 
             else:
                 smaller_trace = work_ref_channel_trace.view()
                 larger_trace = target_channel_trace.view()
 
-            """
-                plt.title('Longer Trace [{}]'.format(target_channel_id))
-                plt.plot(channel_traces[target_channel_id], 'r-')
-                plt.subplot(312)
-                plt.title('Shorter Trace [{}]'.format(ref_channel_id))
-                plt.plot(channel_traces[ref_channel_id], 'b-')
-            """
+                if PLOT_COMPARISON:
+                    figure1_name = "Comparison_{}-{} ".format(ref_channel_id, target_channel_id)
+                    plt.figure(figure1_name)
+
+                    sp1 = plt.subplot(311)
+                    plt.title('Channel [{}] (wider)'.format(target_channel_id))
+                    plt.ylabel('Norm. Level')
+                    plt.plot(channel_traces[target_channel_id], 'r-o')
+                    plt.setp(sp1.get_xticklabels(), visible=False)
+
+                    sp2 = plt.subplot(312, sharex=sp1, sharey=sp1)
+                    plt.title('Channel [{}] (narrower)'.format(ref_channel_id))
+                    plt.ylabel('Norm. Level')
+                    plt.plot(channel_traces[ref_channel_id], 'b-^')
+                    plt.setp(sp2.get_xticklabels(), visible=False)
 
             """
             larger_trace = work_ref_channel_trace.view()
@@ -207,16 +222,22 @@ def _main():
             condensed_distance[c_d_index] = rms_distance
             c_d_index += 1
 
-            """
-            plt.subplot(313)
-            plt.title('Adjusted Traces')
-            plt.plot(larger_trace, 'r-', smaller_trace, 'b-')
-            
-            figure_file_name = "./Images/"+figure1_name+".png"
-            plt.savefig(figure_file_name)
-            plt.close(figure1_name)
-            """
-            #plt.show()
+
+            if PLOT_COMPARISON:
+                sp3 = plt.subplot(313, sharex=sp1, sharey=sp1)
+                plt.title('Traces aligned and cropped for comparison')
+                plt.ylabel('Norm. Level')
+                plt.xlabel('Frequency bin index')
+                plt.plot(larger_trace, 'r-o', smaller_trace, 'b-^')
+                plt.setp(sp3.get_xticklabels(), visible=True)
+                plt.tight_layout()
+
+                figure_file_name = "./Images/Compare/"+figure1_name+".png"
+                plt.savefig(figure_file_name)
+
+                #plt.show()
+
+                plt.close(figure1_name)
 
             """
             if ref_channel_id == '450188': # '466862':
@@ -263,6 +284,8 @@ def _main():
                 channel_info.loc[ref_channel_id, target_channel_id] = (np.max(correlation)-np.min(correlation))/autocorrelation
             """
 
+        print("\n")
+
     # perform grouping by the distance and plot dendograms
     NUMBER_OF_GROUPS = 6
     figure2_name = "Dendogram cut p={}".format(NUMBER_OF_GROUPS)
@@ -286,8 +309,8 @@ def _main():
                                 leaf_rotation=90.,
                                 leaf_font_size=8.)
 
-    # figure_file_name = "./Images/"+figure3_name+".png"
-    # plt.savefig(figure_file_name)
+    figure_file_name = "./Images/"+figure3_name+".png"
+    plt.savefig(figure_file_name)
 
     # creata a description of the channels on each group that compose a specific branch
     leaves = complete_dendo['ivl']

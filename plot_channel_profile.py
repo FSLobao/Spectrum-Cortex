@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-# # Compute the distance between traces for classification
+# # Plot the channel level profile from all channels  
 
 # Import standard libraries
 import pandas as pd
@@ -34,6 +34,7 @@ def _main():
     channel_traces = {}
     channel_frequency = {}
     frequency_at_peak = {}
+    standard_axis = [-20, 20, 5, 45] # [xmin, xmax, ymin, ymax]
 
     # loop through all channels, load data into the traces dictionary and extract reference information into the channel info dataframe
     for channel_id in input_group:
@@ -46,8 +47,9 @@ def _main():
         # ignore channels that are too small
         if channel_width > cn.MINIMUM_CHANNEL_WIDTH:
 
-            # find maximum
+            # find level range
             maximum_level = np.max(one_channel)
+            minimum_level = np.min(one_channel)
 
             # locate the index for the maximum
             index_of_maximum = np.argmax(one_channel)
@@ -55,11 +57,28 @@ def _main():
             if isinstance(index_of_maximum, np.ndarray):
                 index_of_maximum = np.mean(index_of_maximum)
 
+            # store the frequency value for the maximum
             frequency_at_peak[channel_id] = input_group[channel_id][0][index_of_maximum]
 
             # transform level to relative a scale where the maximum equals to 1
             channel_traces[channel_id] = np.array(one_channel, dtype='float64')
             channel_frequency[channel_id] = (np.array(input_group[channel_id][0], dtype='float64')-frequency_at_peak[channel_id])/1000
+
+            """
+            # find frequency range
+            maximum_freq = np.max(channel_frequency[channel_id])
+            minimum_freq = np.min(channel_frequency[channel_id])
+
+            # set the global limiting axis
+            if standard_axis[0] > minimum_freq:
+                standard_axis[0] = minimum_freq
+            if standard_axis[1] < maximum_freq:
+                standard_axis[1] = maximum_freq
+            if standard_axis[2] > minimum_level:
+                standard_axis[2] = minimum_level
+            if standard_axis[3] < maximum_level:
+                standard_axis[3] = maximum_level
+            """
 
     # close file since all data has been loaded into memory
     input_file.close()
@@ -96,10 +115,11 @@ def _main():
         plt.pcolormesh(x_axis, y_axis, xy_array, cmap='CMRmap_r')
         plt.xlabel("Frequency[kHz]")
         plt.ylabel("Level [dB\u03BCV/m]")
+        plt.axis(standard_axis)
 
         plt.plot(channel_frequency[channel_id], channel_traces[channel_id], color='y', lw=2, path_effects=[pe.Stroke(linewidth=4, foreground='w'), pe.Normal()]) #, scaley=y_axis, 
 
-        #plt.show()
+        # plt.show()
 
         figure_file_name = "./Images/"+figure_name+".png"
         plt.savefig(figure_file_name)
